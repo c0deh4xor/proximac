@@ -149,6 +149,11 @@ void server_read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf)
             memcpy(&server_ctx->port, server_ctx->buf + 1 + server_ctx->addrlen, sizeof(server_ctx->port));
             
             LOGI("remote: addr=%s, port=%d", server_ctx->remote_addr, server_ctx->port);
+            // don't allow to connect proxy directly
+            if(!strcmp(conf.local_address, server_ctx->remote_addr)) {
+                TRY_CLOSE(server_ctx, &server_ctx->server_handle, server_after_close_cb);
+                return;
+            }
             
             unsigned long tmpbuf_len = nread - server_ctx->addrlen - 1 - sizeof(server_ctx->port);
             if (tmpbuf_len) {
