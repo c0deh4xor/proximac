@@ -59,8 +59,7 @@ do {                                                                        \
         fprintf(logfile, " %s " tag ": " format "\n", timestr,              \
         ## __VA_ARGS__);                                                    \
         fflush(logfile);                                                    \
-    }                                                                       \
-    else {                                                                  \
+    } else {                                                  \
         time_t now = time(NULL);                                            \
         char timestr[20];                                                   \
         strftime(timestr, 20, TIME_FORMAT, localtime(&now));                \

@@ -785,7 +785,6 @@ kern_return_t proximac_stop(kmod_info_t *ki, void *data)
         return KERN_FAILURE;
     }
     
-    
     release_locks();
     LOGI("Proximac kext is now removed");
     return KERN_SUCCESS;

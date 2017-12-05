@@ -15,6 +15,11 @@
 #include <strings.h>
 #include "tree.h"
 
+enum ProxyType {
+    HTTP,
+    SOCK
+};
+
 typedef struct {
     uint16_t localport;
     char* local_address;
@@ -27,6 +32,7 @@ typedef struct {
     int total_process_num;
     int vpn_mode;
     int proxyapp_hash;
+    enum ProxyType type; // proxyType
 } conf_t;
 
 extern void read_conf(char* configfile, conf_t* conf);
