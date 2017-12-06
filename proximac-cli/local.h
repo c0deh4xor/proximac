@@ -65,4 +65,22 @@ void server_after_close_cb(uv_handle_t* handle);
 void server_read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
 void server_accept_cb(uv_stream_t* server, int status);
 
+
+// common macro
+#define SET_PARAM(socket, opt, val, msg) {                                                      \
+    int retval = setsockopt(socket, SYSPROTO_CONTROL, opt, &val, sizeof(val));                  \
+    if (retval) {                                                                               \
+        LOGE(msg);                                                                              \
+        return retval;                                                                          \
+    }                                                                                           \
+}
+
+#define GET_PARAM(socket, opt, val, size, msg) {                                                \
+    int retval = getsockopt(socket, SYSPROTO_CONTROL, opt, &val, &size);                        \
+    if (retval) {                                                                               \
+        LOGE(msg);                                                                              \
+        return retval;                                                                          \
+    }                                                                                           \
+}
+
 #endif

@@ -85,3 +85,14 @@ unsigned int hash(char *str)
 #undef MULTIPLIER
     return h; // or, h % ARRAY_SIZE;
 }
+
+unsigned int hash_all(char *str)
+{
+    unsigned int h;
+    unsigned char *p;
+#define MULTIPLIER 33
+    h = 0;
+    for (p = (unsigned char*)str; *p != '\0'; p++)
+        h = MULTIPLIER * h + *p;
+    return h; // or, h % ARRAY_SIZE;
+}

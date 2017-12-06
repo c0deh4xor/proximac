@@ -85,6 +85,18 @@ void remote_alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf)
     assert(buf->base != NULL);
 }
 
+struct proxy_server* get_proxy()
+{
+    switch (conf.type) {
+        case SOCK:
+            return &sock_proxy;
+        case HTTP:
+            return &http_proxy;
+        default:
+            return NULL;
+    }
+}
+
 void server_accept_cb(uv_stream_t* server, int status)
 {
     if (status) {
@@ -93,11 +105,9 @@ void server_accept_cb(uv_stream_t* server, int status)
     }
 
     server_ctx_t* server_ctx = calloc(1, sizeof(server_ctx_t));
-    if (conf.type == HTTP) {
-        server_ctx->proxy = &http_proxy;
-    } else if(conf.type == SOCK) {
-        server_ctx->proxy = &sock_proxy;
-    } else {
+    server_ctx->proxy = get_proxy();
+    if(NULL == server_ctx->proxy)
+    {
         LOGE("wrong proxy type!");
         return;
     }
@@ -251,60 +261,52 @@ int tell_kernel_to_hook()
         vpn_mode = 1;
     }
 
-    retval = setsockopt(gSocket, SYSPROTO_CONTROL, PROXIMAC_ON, &vpn_mode, sizeof(vpn_mode));
-    if (retval) {
-        LOGE("setsockopt failure PROXIMAC_ON");
-        return retval;
-    }
+    // enable proxy
+    SET_PARAM(gSocket, PROXIMAC_ON, vpn_mode, "setsockopt failure PROXIMAC_ON");
 
+    // bypass self
     if (vpn_mode == 1) {
-        retval = setsockopt(gSocket, SYSPROTO_CONTROL, NOT_TO_HOOK, &conf.proxyapp_hash, sizeof(conf.proxyapp_hash));
-        if (retval) {
-            LOGE("setsockopt failure NOT_TO_HOOK");
-            return retval;
-        }
+        SET_PARAM(gSocket, NOT_TO_HOOK, conf.proxyapp_hash, "setsockopt failure NOT_TO_HOOK");
     }
+    
+    // bypass proxy server
+    char proxy_addr[100] = {0};
+    memset(proxy_addr, 0, sizeof(proxy_addr));
+    snprintf(proxy_addr, sizeof(proxy_addr), "%s:%d", conf.local_address, conf.localport);
+    int proxy_addr_hash = hash_all(proxy_addr);
+    LOGI("proxy addr:%s,   hash: %d", proxy_addr, proxy_addr_hash);
+    SET_PARAM(gSocket, PROXY_SERVER, proxy_addr_hash, "setsockopt failure PROXY_SERVER");
 
+    // add process to be hooked
     struct pid* pid_tmp = NULL;
     int pidset_checksum = 0;
     RB_FOREACH(pid_tmp, pid_tree, &pid_list)
     {
-        retval = setsockopt(gSocket, SYSPROTO_CONTROL, HOOK_PID, &pid_tmp->pid, sizeof(pid_tmp->pid));
-        if (retval) {
-            LOGE("setsockopt failure HOOK_PID");
-            return retval;
-        }
+        SET_PARAM(gSocket, HOOK_PID, pid_tmp->pid, "setsockopt failure HOOK_PID");
         pidset_checksum += pid_tmp->pid;
     }
 
+    // check pid checksum
     int pidget_checksum = 0;
     unsigned int size = sizeof(pidget_checksum);
-    retval = getsockopt(gSocket, SYSPROTO_CONTROL, HOOK_PID, &pidget_checksum, &size);
-    if (retval) {
-        LOGE("getsockopt HOOK_PID failure");
-        return retval;
-    }
-
+    GET_PARAM(gSocket, HOOK_PID, pidget_checksum, size, "getsockopt HOOK_PID failure");
     if (pidget_checksum == pidset_checksum) {
         LOGI("Hook Succeed!");
     } else {
         LOGI("Hook Fail! pidget_checksum = %d pidset_checksum = %d", pidget_checksum, pidset_checksum);
     }
 
+    // check pidlist number
     int pid_num = 0;
     size = sizeof(pid_num);
-
-    retval = getsockopt(gSocket, SYSPROTO_CONTROL, PIDLIST_STATUS, &pid_num, &size);
-    if (retval) {
-        LOGE("getsockopt PIDLIST_STATUS failure");
-        return retval;
-    }
-
-    if (conf.vpn_mode == 1)
-        LOGI("All traffic will be redirected to this SOCKS5 proxy");
-    else
+    GET_PARAM(gSocket, PIDLIST_STATUS, pid_num, size, "getsockopt PIDLIST_STATUS failure");
+    
+    if (conf.vpn_mode == 1) {
+        LOGI("All traffic will be redirected to this proxy");
+    } else {
         LOGI("The total number of process that will be hooked = %d", pid_num);
-
+    }
+    
     return retval;
 }
 
@@ -379,10 +381,9 @@ int main(int argc, char** argv)
             FATAL("kernel cannot hook this PID due to various reasons");
     }
 
-    if (daemon == 1)
+    if (daemon == 1) {
         init_daemon();
-
- 
+    }
 
     struct sockaddr_in bind_addr;
     loop = malloc(sizeof *loop);

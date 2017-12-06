@@ -36,6 +36,7 @@ static kern_ctl_ref g_proximac_ctl_ref = NULL;
 static int g_pid_num = 0;
 static int g_proximac_mode = PROXIMAC_MODE_OFF;
 static int g_proxy_hash = 0;
+static int g_proxy_addr_hash = 0;
 
 static bool g_proximac_tcp_filter_registered = false;
 static bool	g_proximac_tcp_unreg_started = false;
@@ -293,11 +294,12 @@ static errno_t proximac_ctl_connect_cb(
     return 0;
 }
 
-#define PROXIMAC_ON 1
-#define HOOK_PID 2
-#define PIDLIST_STATUS 3
-#define PROXIMAC_OFF 4
-#define NOT_TO_HOOK 5
+#define PROXIMAC_ON         1
+#define HOOK_PID            2
+#define PIDLIST_STATUS      3
+#define PROXIMAC_OFF        4
+#define NOT_TO_HOOK         5
+#define PROXY_SERVER        6
 
 static errno_t proximac_ctl_setopt_cb(
     kern_ctl_ref kctlref,
@@ -314,7 +316,6 @@ static errno_t proximac_ctl_setopt_cb(
         {
             lck_rw_lock_exclusive(g_pidlist_lock);
             if (g_pid_num != 0) {
-                
                 struct pid *pid_tmp;
                 RB_FOREACH(pid_tmp, pid_tree, &pid_list) {
                     SLIST_INSERT_HEAD(&pid_freelist, pid_tmp, slist_link);
@@ -332,13 +333,12 @@ static errno_t proximac_ctl_setopt_cb(
                 if (g_pid_num == 0)
                     LOGI("pid list is cleared\n");
                 
-            } else
+            } else {
                 LOGI("empty pid list");
+            }
             
             lck_rw_unlock_exclusive(g_pidlist_lock);
-
             lck_rw_lock_exclusive(g_mode_lock);
-            
 
             // install socket filters
             if (g_proximac_mode == PROXIMAC_MODE_OFF) {
@@ -352,9 +352,9 @@ static errno_t proximac_ctl_setopt_cb(
                 if(intval == 1){
                     g_proximac_mode = PROXIMAC_MODE_ALL;
                     LOGI("In VPN mode");
-                }
-                else
+                } else {
                     g_proximac_mode = PROXIMAC_MODE_ON;
+                }
             }
             lck_rw_unlock_exclusive(g_mode_lock);
         }
@@ -396,7 +396,19 @@ static errno_t proximac_ctl_setopt_cb(
             LOGI("proxy's hash has been set to %d", g_proxy_hash);
             lck_rw_unlock_exclusive(g_mode_lock);
             break;
-
+        }
+        case PROXY_SERVER:
+        {
+            if (len < sizeof(int)) {
+                retval = EINVAL;
+                break;
+            }
+            
+            lck_rw_lock_exclusive(g_mode_lock);
+            g_proxy_addr_hash = *(int*)data;
+            LOGI("proxy addr hash is %d", g_proxy_addr_hash);
+            lck_rw_unlock_exclusive(g_mode_lock);
+            break;
         }
         default:
             break;
@@ -545,11 +557,32 @@ proximac_tcp_connect_out_cb(
 
     /* see if this is a local stream, then we just ignore */
     int local_tcp_flag = 0;
-    if (remote_addr->sin_addr.s_addr == LOCALHOST)
+    if (remote_addr->sin_addr.s_addr == LOCALHOST) {
         return 0;
+    }
+    
+    // bypass the proxy
+    {
+        unsigned char    addrString[256];
+        void* remoteAddr = &(proximac_cookie->remote_addr.addr4.sin_addr);
+        in_port_t port = proximac_cookie->remote_addr.addr4.sin_port;
+        inet_ntop(AF_INET, remoteAddr, (char*) addrString, sizeof(addrString));
+        
+        char addr[500];
+        memset(addr, 0, sizeof(addr));
+        snprintf(addr, sizeof(addr), "%s:%d", addrString, port);
+        int addr_hash = pid_hash(addr);
+        LOGI("[proxy] PID = %d, addr=%s, hash=%d", proximac_cookie->pid, addr, addr_hash);
+        if (addr_hash == g_proxy_addr_hash) {
+            LOGI("-- skip proxy. PID = %d", proximac_cookie->pid);
+            return 0;
+        }
+    }
     
     /* do not forward any traffic from proximac-cli or SOCKS5 proxy. Otherwise, traffic will be trapped in a loop */
-    if (proximac_cookie->pid == 0 || proximac_cookie->pidhash_value == pid_hash(MYAPPNAME) || proximac_cookie->pidhash_value == g_proxy_hash) {
+    if (proximac_cookie->pid == 0
+        || proximac_cookie->pidhash_value == pid_hash(MYAPPNAME)
+        || proximac_cookie->pidhash_value == g_proxy_hash) {
         LOGI("Traffic from this process is not allowed to be forwarded. PID = %d", proximac_cookie->pid);
         return 0;
     }
@@ -640,6 +673,8 @@ proximac_tcp_notify_cb(void *cookie, socket_t so, sflt_event_t event, void *para
                 LOGI("getsockopt addrString %s\n", addrString);
                 int hdr_len = 1 + addrlen + sizeof(port);
                 
+                // packet format
+                // addrlen(1byte) | addr | port (2byte)
                 char* proximac_hdr = _MALLOC(hdr_len, M_TEMP, M_WAITOK| M_ZERO);
                 proximac_hdr[0] = addrlen;
                 memcpy(proximac_hdr + 1, addrString, addrlen);
