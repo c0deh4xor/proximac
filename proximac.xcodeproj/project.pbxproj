@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		63DB2B631FD678FA008486CE /* sock_proxy.c in Sources */ = {isa = PBXBuildFile; fileRef = 63DB2B621FD678FA008486CE /* sock_proxy.c */; };
+		63DB2B651FD68F6D008486CE /* http_proxy.c in Sources */ = {isa = PBXBuildFile; fileRef = 63DB2B641FD68F6D008486CE /* http_proxy.c */; };
 		C13D4B481B086B13009F90A7 /* proximac.h in Headers */ = {isa = PBXBuildFile; fileRef = C13D4B471B086B13009F90A7 /* proximac.h */; };
 		C163FE841B09134800149D9A /* local.c in Sources */ = {isa = PBXBuildFile; fileRef = C163FE791B09134800149D9A /* local.c */; };
 		C163FE851B09134800149D9A /* jconf.c in Sources */ = {isa = PBXBuildFile; fileRef = C163FE7C1B09134800149D9A /* jconf.c */; };
@@ -31,6 +33,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		63DB2B611FD678F2008486CE /* constant.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = constant.h; sourceTree = "<group>"; };
+		63DB2B621FD678FA008486CE /* sock_proxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sock_proxy.c; path = "proximac-cli/sock_proxy.c"; sourceTree = SOURCE_ROOT; };
+		63DB2B641FD68F6D008486CE /* http_proxy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = http_proxy.c; sourceTree = "<group>"; };
 		C13D4B471B086B13009F90A7 /* proximac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = proximac.h; sourceTree = "<group>"; };
 		C163FE451B0912C300149D9A /* proximac-cli */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "proximac-cli"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C163FE791B09134800149D9A /* local.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = local.c; path = "proximac-cli/local.c"; sourceTree = SOURCE_ROOT; };
@@ -73,6 +78,9 @@
 		C163FE461B0912C300149D9A /* proximac-cli */ = {
 			isa = PBXGroup;
 			children = (
+				63DB2B641FD68F6D008486CE /* http_proxy.c */,
+				63DB2B621FD678FA008486CE /* sock_proxy.c */,
+				63DB2B611FD678F2008486CE /* constant.h */,
 				C163FE791B09134800149D9A /* local.c */,
 				C163FE7A1B09134800149D9A /* utils.h */,
 				C163FE7B1B09134800149D9A /* local.h */,
@@ -226,10 +234,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				63DB2B651FD68F6D008486CE /* http_proxy.c in Sources */,
 				C163FE871B09134800149D9A /* tree.c in Sources */,
 				C163FE851B09134800149D9A /* jconf.c in Sources */,
 				C163FE881B09134800149D9A /* js0n.c in Sources */,
 				C163FE861B09134800149D9A /* utils.c in Sources */,
+				63DB2B631FD678FA008486CE /* sock_proxy.c in Sources */,
 				C163FE841B09134800149D9A /* local.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

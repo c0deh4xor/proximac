@@ -59,8 +59,7 @@ do {                                                                        \
         fprintf(logfile, " %s " tag ": " format "\n", timestr,              \
         ## __VA_ARGS__);                                                    \
         fflush(logfile);                                                    \
-    }                                                                       \
-    else {                                                                  \
+    } else {                                                  \
         time_t now = time(NULL);                                            \
         char timestr[20];                                                   \
         strftime(timestr, 20, TIME_FORMAT, localtime(&now));                \
@@ -181,6 +180,8 @@ struct timeval GetTimeStamp();
 void setup_signal_handler(uv_loop_t *loop);
 void signal_handler(uv_signal_t *handle, int signum);
 void init_daemon();
+
 unsigned int hash(char *str);
+unsigned int hash_all(char *str);
 
 #endif

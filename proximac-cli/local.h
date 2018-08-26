@@ -1,38 +1,7 @@
 #ifndef LOCAL_H_
 #define LOCAL_H_
 
-#define BUF_SIZE 2048
-#define CTL_CLOSE 0x04
-#define CTL_INIT 0x01
-#define CTL_NORMAL 0
-
-#define LOCALHOST "127.0.0.1"
-
-// packet related MACROs
-#define MAX_PKT_SIZE 8192
-#define ID_LEN 4
-#define PKT_LEN 2
-#define RSV_LEN 1
-#define DATALEN_LEN 2
-#define ATYP_LEN 1
-#define ADDRLEN_LEN 1
-#define PORT_LEN 2
-#define HDR_LEN (ID_LEN + RSV_LEN + DATALEN_LEN)
-#define EXP_TO_RECV_LEN (ID_LEN + RSV_LEN + DATALEN_LEN)
-
-// remote connection status MACROs
-#define RC_OFF 0
-#define RC_ESTABLISHING 1
-#define RC_OK 2
-#define MAX_RC_NUM 32
-
-// PF sockopt
-#define PROXIMAC_ON 1
-#define HOOK_PID 2
-#define PIDLIST_STATUS 3
-#define PROXIMAC_OFF 4
-#define NOT_TO_HOOK 5
-
+#include "constant.h"
 #include "tree.h"
 
 struct pid {
@@ -58,7 +27,19 @@ typedef struct {
 
 struct remote_ctx;
 
+typedef void (*remote_read)(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
+typedef void (*remote_write)(uv_write_t* req, int status);
+typedef void (*connect_to_remote)(uv_connect_t* req, int status);
+
+typedef struct proxy_server {
+    remote_write remote_write_cb;
+    remote_read remote_read_cb;
+    connect_to_remote connect_to_remote_cb;
+} proxy_server_t;
+
 typedef struct server_ctx {
+    struct proxy_server *proxy;
+    
     uv_tcp_t server_handle;
     uv_tcp_t remote_handle;
     int server_stage;
@@ -71,5 +52,35 @@ typedef struct server_ctx {
     size_t buf_len;
     struct remote_ctx* remote_ctx;
 } server_ctx_t;
+
+
+// common callback functions
+void server_alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf);
+void remote_alloc_cb(uv_handle_t* handle, size_t size, uv_buf_t* buf);
+
+void remote_after_close_cb(uv_handle_t* handle);
+void final_after_close_cb(uv_handle_t* handle);
+void server_after_close_cb(uv_handle_t* handle);
+
+void server_read_cb(uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf);
+void server_accept_cb(uv_stream_t* server, int status);
+
+
+// common macro
+#define SET_PARAM(socket, opt, val, msg) {                                                      \
+    int retval = setsockopt(socket, SYSPROTO_CONTROL, opt, &val, sizeof(val));                  \
+    if (retval) {                                                                               \
+        LOGE(msg);                                                                              \
+        return retval;                                                                          \
+    }                                                                                           \
+}
+
+#define GET_PARAM(socket, opt, val, size, msg) {                                                \
+    int retval = getsockopt(socket, SYSPROTO_CONTROL, opt, &val, &size);                        \
+    if (retval) {                                                                               \
+        LOGE(msg);                                                                              \
+        return retval;                                                                          \
+    }                                                                                           \
+}
 
 #endif

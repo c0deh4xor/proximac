@@ -121,6 +121,17 @@ void read_conf(char* configfile, conf_t* conf)
         memcpy(conf->password, val, vlen);
         conf->password[vlen] = '\0';
     }
+    
+    // proxy type: http|sock
+    JSONPARSE("type")
+    {
+        conf->type = HTTP; //default http
+        if (!strcmp("http", val)) {
+            conf->type = HTTP;
+        } else if (!strcmp("sock", val)) {
+            conf->type = SOCK;
+        }
+    }
 
 #undef JSONPARSE
 
